@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                CPAN-PackageDetails
-version:             0.10_01
+version:             0.11_01
 abstract:            Create or read 02.packages.details.txt.gz
 license:             perl
 author:              
