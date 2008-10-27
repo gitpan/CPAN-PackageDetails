@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                CPAN-PackageDetails
-version:             0.11_02
+version:             0.11_03
 abstract:            Create or read 02packages.details.txt.gz
 license:             perl
 author:              
@@ -8,7 +8,8 @@ author:
 generated_by:        ExtUtils::MakeMaker version 6.44
 distribution_type:   module
 requires:     
-    PerlIO::gzip:                  0
+    IO::Compress::Gzip:            0
+    IO::Uncompress::Gunzip:        0
     Test::More:                    0
     Test::Output:                  0.10
 meta-spec:
