@@ -1,7 +1,7 @@
 --- #YAML:1.0
 name:                CPAN-PackageDetails
-version:             0.11_01
-abstract:            Create or read 02.packages.details.txt.gz
+version:             0.11_02
+abstract:            Create or read 02packages.details.txt.gz
 license:             perl
 author:              
     - brian d foy <bdfoy@cpan.org>
