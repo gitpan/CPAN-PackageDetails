@@ -9,7 +9,7 @@ use vars qw($VERSION);
 
 use Carp;
 
-$VERSION = '0.12';
+$VERSION = '0.13';
 
 =head1 NAME
 
@@ -836,13 +836,19 @@ sub new
 Formats the Entry as text. It joins with whitespace the values for the 
 column names you pass it. You get the newline automatically.
 
+Any values that are not defined (or the empty string) turn into the
+literal string 'undef' to preserve the columns in the output.
+
 =cut
 
 sub as_string
 	{
 	my( $self, @columns ) = @_;
 	
-	return join( "\t", map { $self->{$_} } @columns ) . "\n";
+	# can't check defined() because that let's the empty string through
+	return join( "\t", 
+		map { length $self->{$_} ? $self->{$_} : 'undef' } @columns 
+		) . "\n";
 	}	
 
 }
