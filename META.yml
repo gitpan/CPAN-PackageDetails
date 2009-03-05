@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               CPAN-PackageDetails
-version:            0.17
+version:            0.17_03
 abstract:           Create or read 02packages.details.txt.gz
 author:
     - brian d foy <bdfoy@cpan.org>

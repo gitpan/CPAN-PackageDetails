@@ -1,5 +1,5 @@
 Changes
-examples/placeholder.pl
+examples/make_02packages.pl
 lib/PackageDetails.pm
 LICENSE
 Makefile.PL
@@ -20,5 +20,6 @@ t/test_files/02packages.details.txt.gz
 t/test_manifest
 t/test_regression/no_entries.gz
 t/test_regression/three_entries.gz
+t/unique_sorted.t
 t/write_file.t
 META.yml                                 Module meta-data (added by MakeMaker)
