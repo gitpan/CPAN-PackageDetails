@@ -1,5 +1,10 @@
-02package.details.txt.gz
 Changes
+corpus/bad/incomplete.txt.gz
+corpus/bad/missing_distro.txt.gz
+corpus/bad/no_entries.txt.gz
+corpus/cpan/L/LO/LOCAL/Local-Bar-4.56.tar.gz
+corpus/cpan/L/LO/LOCAL/Local-Foo-1.23.tar.gz
+corpus/good/no_tricks.txt.gz
 examples/make_02packages.pl
 lib/PackageDetails.pm
 LICENSE
@@ -9,6 +14,7 @@ README
 t/allow_packages_only_once.t
 t/as_string.t
 t/autoload.t
+t/check_file.t
 t/format_date.t
 t/get_header.t
 t/load.t
