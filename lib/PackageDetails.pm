@@ -9,7 +9,7 @@ use Carp qw(carp croak cluck confess);
 use File::Spec::Functions;
 
 BEGIN {
-	$VERSION = '0.21_03';
+	$VERSION = '0.21_05';
 	}
 
 =head1 NAME
@@ -396,10 +396,18 @@ sub write_fh
 
 sub check_file
 	{
-	my( $class, $file, $cpan_path ) = @_;
+	my( $either, $file, $cpan_path ) = @_;
 
+	# works with a class or an instance. We have to create a new
+	# instance, so we need the class. However, I'm concerned about
+	# subclasses, so if the higher level application just has the
+	# object, and maybe from a class I don't know about, they should
+	# be able to call this method and have it end up here if they
+	# didn't override it. That is, don't encourage them to hard code 
+	# a class name
+	my $class = ref $either || $either;
+	
 	# file exists
-	croak( "check_file is a class method, but you called it on an instance [$class]" ) if ref $class;
 	croak( "File [$file] does not exist!\n" ) unless -e $file;
 
 	# file is gzipped
@@ -485,26 +493,35 @@ sub _filter_older_dists
 	require CPAN::DistnameInfo;
 	
 	my %Seen;
+	my @order;
 	
-	my @temp = map { # extract for the hash
-			$_->[0]
+	foreach my $path ( @$array )
+		{
+		my $distname = CPAN::DistnameInfo->new($path);
+		my( $name, $version ) = map { $distname->$_ } qw(dist version);
+		my $tuple = [ $path, $name, $version ];
+		push @order, $name;
+		
+		   # first branch, haven't seen the distro yet
+		   if( ! exists $Seen{ $name } )       { $Seen{ $name } = $tuple }
+		   # second branch, the version we see now is greater than before
+		elsif( $Seen{ $name }[2] < $version )  { $Seen{ $name } = $tuple }
+		   # third branch, nothing. Really? Are you sure there's not another case?
+		else                                   { () }
+		}
+		
+	@$array = map { 
+		if( exists $Seen{$_} )
+			{
+			my $dist = $Seen{$_}[0];
+			delete $Seen{$_};
+			$dist;
 			}
-		map { 
-			   # first branch, we've never seen this distro name
-			   if( ! exists $Seen{ $_->[1] } )     { $Seen{$_->[1]} = $_ }
-			   # second branch, the version we see now is greater than before
-			elsif( $Seen{ $_->[1] }[2] < $_->[2] ) { $Seen{$_->[1]} = $_ }
-			   # third branch, nothing. Really? Are you sure there's not another case?
-			else                                   { () }
+		else
+			{
+			()
 			}
-		map { # create the tuples
-			my $path = $_;
-			my $distname = CPAN::DistnameInfo->new($path);
-			my( $name, $version ) = map { $distname->$_ } qw(dist version);
-			[ $path, $name, $version ];
-			} @$array;
-	
-	@$array = @temp;
+		} @order;
 	
 	return 1;
 	}
