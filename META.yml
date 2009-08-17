@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               CPAN-PackageDetails
-version:            0.21_02
+version:            0.21_03
 abstract:           Create or read 02packages.details.txt.gz
 author:
     - brian d foy <bdfoy@cpan.org>
@@ -11,6 +11,7 @@ configure_requires:
 build_requires:
     ExtUtils::MakeMaker:  0
 requires:
+    CPAN::DistnameInfo:   0
     IO::Compress::Gzip:   0
     IO::Uncompress::Gunzip:  0
     Test::More:           0
