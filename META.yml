@@ -1,17 +1,25 @@
 --- #YAML:1.0
-name:                CPAN-PackageDetails
-version:             0.20_01
-abstract:            Create or read 02packages.details.txt.gz
-license:             perl
-generated_by:        ExtUtils::MakeMaker version 6.36_01
-distribution_type:   module
-requires:     
-    IO::Compress::Gzip:            0
-    IO::Uncompress::Gunzip:        0
-    Test::More:                    0
-    Test::Output:                  0.10
-meta-spec:
-    url:     http://module-build.sourceforge.net/META-spec-v1.2.html
-    version: 1.2
+name:               CPAN-PackageDetails
+version:            0.21_02
+abstract:           Create or read 02packages.details.txt.gz
 author:
     - brian d foy <bdfoy@cpan.org>
+license:            perl
+distribution_type:  module
+configure_requires:
+    ExtUtils::MakeMaker:  0
+build_requires:
+    ExtUtils::MakeMaker:  0
+requires:
+    IO::Compress::Gzip:   0
+    IO::Uncompress::Gunzip:  0
+    Test::More:           0
+    Test::Output:         0.10
+no_index:
+    directory:
+        - t
+        - inc
+generated_by:       ExtUtils::MakeMaker version 6.50
+meta-spec:
+    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
+    version:  1.4
