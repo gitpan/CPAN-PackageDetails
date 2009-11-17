@@ -3,7 +3,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = '0.21_03';
+$VERSION = '0.21_07';
 
 use Carp;
 
@@ -225,11 +225,11 @@ Once called, it caches its result until you add more entries.
 
 =cut
 
+sub VERSION_PM () { 9 }
 sub as_unique_sorted_list
 	{
 	my( $self ) = @_;
 
-	
 	unless( ref $self->{sorted} eq ref [] )
 		{
 		$self->{sorted} = [];
@@ -239,15 +239,29 @@ sub as_unique_sorted_list
 		my( $k1, $k2 ) = ( $self->columns )[0,1];
 
 		my $e = $self->entries;
-		
-	# We only want the latest versions of everything:
+
+		# We only want the latest versions of everything:
 		foreach my $package ( sort keys %$e )
 			{
-			my( $highest_version ) = 
-				sort { $e->{$package}{$b} <=> $e->{$package}{$b} }
-				keys %{ $e->{$package} };
-			
-			push @{ $self->{sorted} }, $e->{$package}{$highest_version};
+			my $entries = $e->{$package};
+			eval {
+				eval { require version } or die "Could not load version.pm!";
+				die "Your version of the version module doesn't handle the parse method!"
+					unless version->can('parse');
+				} or croak( {
+					message         => $@,
+					have_version    => eval { version->VERSION },
+					need_version    => 0.74,
+					inc             => [ @INC ],
+					error           => VERSION_PM,
+					} 
+				);
+				
+			my( $highest_version ) =
+				sort { version->parse($b) <=> version->parse($a) }
+				keys %$entries;
+
+			push @{ $self->{sorted} }, $entries->{$highest_version};
 			}
 		}
 	

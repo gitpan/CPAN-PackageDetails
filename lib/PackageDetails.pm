@@ -6,10 +6,11 @@ use subs qw();
 use vars qw($VERSION);
 
 use Carp qw(carp croak cluck confess);
+use File::Basename;
 use File::Spec::Functions;
 
 BEGIN {
-	$VERSION = '0.21_05';
+	$VERSION = '0.21_07';
 	}
 
 =head1 NAME
@@ -389,10 +390,25 @@ sub write_fh
 	print $fh $self->header->as_string, $self->entries->as_string;
 	}
 	
-=item check_file
+=item check_file( FILE, CPAN_PATH )
 
+This method takes an existing 02packages.details.txt.gz named in FILE and
+the the CPAN root at CPAN_PATH (to append to the relative paths in the
+index), then checks the file for several 
+
+	1. That there are entries in the file
+	2. The number of entries matches those declared in the Line-Count header
+	3. All paths listed in the file exist under CPAN_PATH
+	4. All distributions under CPAN_PATH have an entry (not counting older versions)
+
+If any of these checks fail, C<check_file> croaks. If all of these checks pass,
+check_file returns 1.
 
 =cut
+
+sub ENTRY_COUNT_MISMATCH () { 1 }
+sub MISSING_IN_REPO      () { 2 }
+sub MISSING_IN_FILE      () { 3 }
 
 sub check_file
 	{
@@ -423,15 +439,29 @@ sub check_file
 	# count of lines matches # # # # # # # # # # # # # # # # # # #
 	my $entries_count = $packages->count;
 
-	croak( "Entry count mismatch? " .
-		"The header says $header_count but there are only $entries_count records\n" )
-		unless $header_count == $entries_count;
+	unless( $header_count == $entries_count )
+		{
+		my $error = {
+			message => "Entry count mismatch? The header says $header_count but there are only $entries_count records",
+			error   => ENTRY_COUNT_MISMATCH,
+			};
+			
+		croak( $error );		
+		}
 
 	# all listed distributions are in repo # # # # # # # # # # # # # # # # # # #
 	my @missing;
 	if( defined $cpan_path )
 		{
-		croak( "CPAN path [$cpan_path] does not exist!\n" ) unless -e $cpan_path;
+		unless( -e $cpan_path )
+			{
+			my $error = {
+				message => "CPAN path [$cpan_path] does not exist!",
+				error   => 1,
+				};
+				
+			croak( $error );		
+			}
 		
 		# this entries syntax really sucks
 		my( $entries ) = $packages->as_unique_sorted_list;
@@ -444,43 +474,59 @@ sub check_file
 			push @missing, $path unless -e $native_path;
 			}
 			
-		croak( 
-			"Some paths in $file do not show up under $cpan_path\n" .
-			join( "\n\t", @missing ) . "\n" 
-			)
-			if @missing;
-			
+		if( @missing )
+			{
+			my $error = {
+				message         => "Some paths in $file do not show up under $cpan_path",
+				missing_in_repo => \@missing,
+				error           => MISSING_IN_REPO,
+				};
+				
+			croak( $error );		
+			}			
+
 		}
 
 	# all repo distributions are listed # # # # # # # # # # # # # # # # # # #
 	# the trick here is to not care about older versions
 	if( defined $cpan_path )
 		{
-		croak( "CPAN path [$cpan_path] does not exist!\n" ) unless -e $cpan_path;
+		unless( -e $cpan_path )
+			{
+			my $error = {
+				message => "CPAN path [$cpan_path] does not exist!",
+				error   => 1,
+				};
+				
+			croak( $error );		
+			}
 			
 		my $dists = $class->_get_repo_dists( $cpan_path );
 		
 		$class->_filter_older_dists( $dists );
 		
 		my %files = map { $_, 1 } @$dists;
+		use Data::Dumper;
 		
 		my( $entries ) = $packages->as_unique_sorted_list;
 
 		foreach my $entry ( @$entries )
 			{
 			my $path = $entry->path;
-			
-			my $native_path = catfile( $cpan_path, split m|/|, $path );
-			
+			my $native_path = catfile( $cpan_path, split m|/|, $path );			
 			delete $files{$native_path};
 			}
 
-		croak( 
-			"Some paths in $cpan_path do not show up in $file\n" .
-			join( "\n\t", keys %files ) . "\n" 
-			)
-			if keys %files;
-		
+		if( keys %files )
+			{
+			my $error = {
+				message         => "Some paths in $cpan_path do not show up under $file",
+				missing_in_file => [ keys %files ],
+				error           => MISSING_IN_FILE,
+				};
+				
+			croak( $error );		
+			}		
 		}
 		
 	return 1;
@@ -497,15 +543,15 @@ sub _filter_older_dists
 	
 	foreach my $path ( @$array )
 		{
-		my $distname = CPAN::DistnameInfo->new($path);
-		my( $name, $version ) = map { $distname->$_ } qw(dist version);
+		my( $basename, $directory, $suffix ) = fileparse( $path, qw(.tar.gz .tgz .zip .tar.bz2) );
+		my( $name, $version, $developer ) = CPAN::DistnameInfo::distname_info( $basename );
 		my $tuple = [ $path, $name, $version ];
 		push @order, $name;
 		
 		   # first branch, haven't seen the distro yet
 		   if( ! exists $Seen{ $name } )       { $Seen{ $name } = $tuple }
 		   # second branch, the version we see now is greater than before
-		elsif( $Seen{ $name }[2] < $version )  { $Seen{ $name } = $tuple }
+		elsif( $Seen{ $name }[2] lt $version )  { $Seen{ $name } = $tuple }
 		   # third branch, nothing. Really? Are you sure there's not another case?
 		else                                   { () }
 		}
@@ -525,7 +571,91 @@ sub _filter_older_dists
 	
 	return 1;
 	}
+
+
+sub _distname_info 
+	{
+	my $file = shift or return;
 	
+	my ($dist, $version) = $file =~ /^
+		(                          # start of dist name
+			(?:
+				[-+.]*
+
+				(?:
+					[A-Za-z0-9]+
+						|
+					(?<=\D)_
+						|
+					_(?=\D)
+				)*
+	 			
+	 			(?:
+					[A-Za-z]
+					(?=
+						[^A-Za-z]
+						|
+						$
+					)
+						|
+					\d
+					(?=-)
+	 			)
+	 			
+	 			(?<!
+	 				[._-][vV]
+	 			)
+			)+
+		)                          # end of dist name
+
+		(                          # start of version
+		.*
+		)                          # end of version
+	$/xs or return ($file, undef, undef );
+
+	$dist =~ s/-undef\z// if ($dist =~ /-undef\z/ and ! length $version);
+
+	# Catch names like Unicode-Collate-Standard-V3_1_1-0.1
+	# where the V3_1_1 is part of the distname
+	if ($version =~ /^(-[Vv].*)-(\d.*)/) {
+		$dist    .= $1;
+		$version  = $2;
+		}
+
+	$version = $1            if !length $version and $dist =~ s/-(\d+\w)$//;
+
+	$version = $1 . $version if $version =~ /^\d+$/ and $dist =~ s/-(\w+)$//;
+
+	if( $version =~ /\d\.\d/ ) { $version =~ s/^[-_.]+// }
+	else                       { $version =~ s/^[-_]+//  }
+
+	# deal with versions with extra information
+	$version =~ s/-build\d+.*//;
+	$version =~ s/-DRW.*//;
+	
+	# deal with perl versions, merely to see if it is a dev version
+	my $dev;
+	if( length $version ) 
+		{
+		$dev = do {
+			if ($file =~ /^perl-?\d+\.(\d+)(?:\D(\d+))?(-(?:TRIAL|RC)\d+)?$/) 
+				{
+				 1 if (($1 > 6 and $1 & 1) or ($2 and $2 >= 50)) or $3;
+				}
+			elsif ($version =~ /\d\D\d+_\d/) 
+				{
+				1;
+				}
+			};
+		}
+	else 
+		{
+		$version = undef;
+		}
+
+	($dist, $version, $dev);
+	}
+
 sub _get_repo_dists
 	{	
 	my( $self, $cpan_home ) = @_;

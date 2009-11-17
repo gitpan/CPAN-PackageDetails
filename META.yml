@@ -1,7 +1,7 @@
 --- #YAML:1.0
 name:               CPAN-PackageDetails
-version:            0.21_05
-abstract:           Create or read 02packages.details.txt.gz
+version:            0.21_07
+abstract:           Create or read PAUSE's 02packages.details.txt.gz
 author:
     - brian d foy <bdfoy@cpan.org>
 license:            perl
@@ -16,6 +16,7 @@ requires:
     IO::Uncompress::Gunzip:  0
     Test::More:           0
     Test::Output:         0.10
+    version:              0.74
 no_index:
     directory:
         - t
