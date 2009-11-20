@@ -11,7 +11,7 @@ use File::Basename;
 use File::Spec::Functions;
 
 BEGIN {
-	$VERSION = '0.23';
+	$VERSION = '0.24';
 	}
 
 =head1 NAME
@@ -499,18 +499,20 @@ sub check_file
 	return 1;
 	}
 
-=item check_for_missing_dists_in_file( CPAN_PATH )
+
+
+=item check_for_missing_dists_in_repo( CPAN_PATH )
 
 Given an object and a CPAN_PATH, return an anonymous array of the 
-distributions in CPAN_PATH that do not show up in the object. That is,
-complain when the object doesn't have all the dists.
+distributions in the object that are not in CPAN_PATH. That is,
+complain when the object has extra distributions.
 
 C<check_file> calls this for you and adds the result to its
 error output.
 
 =cut
 
-sub check_for_missing_dists_in_file
+sub check_for_missing_dists_in_repo
 	{
 	my( $packages, $cpan_path ) = @_;
 
@@ -528,18 +530,18 @@ sub check_for_missing_dists_in_file
 	return \@missing;
 	}
 
-=item check_for_missing_dists_in_repo( CPAN_PATH )
+=item check_for_missing_dists_in_file( CPAN_PATH )
 
 Given an object and a CPAN_PATH, return an anonymous array of the 
-distributions in the object that are not in CPAN_PATH. That is,
-complain when the object has extra distributions.
+distributions in CPAN_PATH that do not show up in the object. That is,
+complain when the object doesn't have all the dists.
 
 C<check_file> calls this for you and adds the result to its
 error output.
 
 =cut
 
-sub check_for_missing_dists_in_repo
+sub check_for_missing_dists_in_file
 	{
 	my( $packages, $cpan_path ) = @_;
 	
@@ -736,7 +738,6 @@ sub header { $_[0]->{header} }
 =over 4
 
 =cut
-
 
 =back
 	
