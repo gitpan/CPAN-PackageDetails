@@ -3,7 +3,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = '0.24';
+$VERSION = '0.2401';
 
 use Carp;
 
@@ -160,7 +160,21 @@ sub add_entry
 	
 	unless( defined $args{'package name'} )
 		{
-		carp "No 'package name' parameter!";
+		croak "No 'package name' parameter!";
+		return;
+		}
+
+	unless( $args{'package name'} =~ m/
+		^
+		[A-Za-z0-9_]+
+		(?: 
+			(?:\::|')
+			[A-Za-z0-9_]+
+		)*
+		\z
+		/x )
+		{
+		croak "Package name [$args{'package name'}] looks suspicious. Not adding it!";
 		return;
 		}
 		
