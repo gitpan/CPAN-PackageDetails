@@ -11,7 +11,7 @@ use File::Basename;
 use File::Spec::Functions;
 
 BEGIN {
-	$VERSION = '0.25';
+	$VERSION = '0.25_02';
 	}
 
 =head1 NAME
@@ -110,17 +110,44 @@ and you try to add that package twice, the object will die. See C<add_entry>.
 
 =cut
 
+BEGIN {
+my $class_counter = 0;
 sub new
 	{
 	my( $class, %args ) = @_;
 
-	my $self = bless {}, $class;
+	my( $ref, $bless_class ) = do {
+		if( exists $args{dbmdeep} )
+			{
+			eval { require DBM::Deep };
+			if( $@ ) {
+				croak "You must have DBM::Deep installed and discoverable to use the dbmdeep feature";
+				}
+			my $ref = DBM::Deep->new( 
+				file => $args{dbmdeep}, 
+				autoflush => 1,
+				);
+			croak "Could not create DBM::Deep object" unless ref $ref;
+			my $single_class = sprintf "${class}::DBM%03d", $class_counter++;
+			
+			no strict 'refs';
+			@{"${single_class}::ISA"} = ( $class , 'DBM::Deep' );
+			( $ref, $single_class );
+			}
+		else
+			{
+			( {}, $class );
+			}
+		};
+		
+	my $self = bless $ref, $bless_class;
 	
 	$self->init( %args );
 	
 	$self;
 	}
-	
+}
+
 =item init
 
 Sets up the object. C<new> calls this automatically for you.
@@ -148,7 +175,7 @@ BEGIN {
 # them to the right delegate
 my %Dispatch = (
 		header  => { map { $_, 1 } qw(default_headers get_header set_header header_exists columns_as_list) },
-		entries => { map { $_, 1 } qw(add_entry count as_unique_sorted_list already_added allow_packages_only_once) },
+		entries => { map { $_, 1 } qw(add_entry count as_unique_sorted_list already_added allow_packages_only_once get_entries_by_package get_entries_by_version get_entries_by_path get_entries_by_distribution) },
 	#	entry   => { map { $_, 1 } qw() },
 		);
 		
@@ -234,16 +261,18 @@ sub init
 		{
 		eval "require $class";
 		}
-	
+
+	# don't initialize things if they are already there. For instance, 
+	# if we read an existing DBM::Deep file
 	$self->{entries} = $self->entries_class->new(
 		entry_class              => $self->entry_class,
 		columns                  => [ split /,\s+/, $config{columns} ],
 		allow_packages_only_once => $config{allow_packages_only_once},
-		);
+		) unless exists $self->{entries};
 	
 	$self->{header}  = $self->header_class->new(
 		_entries => $self->entries,
-		);
+		) unless exists $self->{header};
 	
 	
 	foreach my $key ( keys %config )
@@ -284,8 +313,9 @@ sub read
 		
 	require IO::Uncompress::Gunzip;
 
-	my $fh = IO::Uncompress::Gunzip->new( $file ) or do {	
-		carp "Could not open $file: $IO::Compress::Gunzip::GunzipError";
+	my $fh = IO::Uncompress::Gunzip->new( $file ) or do {
+		no warnings;
+		carp "Could not open $file: $IO::Compress::Gunzip::GunzipError\n";
 		return;
 		};
 	

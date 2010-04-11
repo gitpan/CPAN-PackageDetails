@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               CPAN-PackageDetails
-version:            0.25
+version:            0.25_02
 abstract:           Create or read PAUSE's 02packages.details.txt.gz
 author:
     - brian d foy <bdfoy@cpan.org>
