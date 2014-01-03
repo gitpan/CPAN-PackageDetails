@@ -1,9 +1,9 @@
-package CPAN::PackageDetails::Entries;
+package CPAN::PackageDetails::PerlHash;
 use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = '0.25_05';
+$VERSION = '0.26';
 
 use Carp;
 use version;
@@ -12,11 +12,12 @@ sub DESTROY { }
 
 =head1 NAME
 
-CPAN::PackageDetails::Entries - Handle the collection of records of 02packages.details.txt.gz
+CPAN::PackageDetails::PerlHash - Handle the collection of records of 02packages.details.txt.gz
 
 =head1 SYNOPSIS
 
-Used internally by CPAN::PackageDetails
+Used internally by CPAN::PackageDetails to store the stuff in a Perl
+hash.
 
 =head1 DESCRIPTION
 
@@ -43,6 +44,7 @@ sub new {
 	my %hash = (
 		entry_class              => 'CPAN::PackageDetails::Entry',
 		allow_packages_only_once => 1,
+		allow_suspicious_names   => 0,
 		columns                  => [],
 		entries                  => {},
 		%args
@@ -75,8 +77,7 @@ Returns the list position of the named COLUMN.
 
 =cut
 
-sub column_index_for
-	{
+sub column_index_for {
 	my( $self, $column ) = @_;
 
 
@@ -96,13 +97,11 @@ this method counts duplicates as well.
 
 =cut
 
-sub count
-	{
+sub count {
 	my $self = shift;
 
 	my $count = 0;
-	foreach my $package ( keys %{ $self->{entries} } )
-		{
+	foreach my $package ( keys %{ $self->{entries} } ) {
 		$count += keys %{ $self->{entries}{$package} };
 		}
 
@@ -111,7 +110,8 @@ sub count
 
 =item entries
 
-Returns the list of entries as an array reference.
+Returns the list of entries as an hash reference. The hash key is the
+package name.
 
 =cut
 
@@ -124,11 +124,23 @@ a boolean.
 
 =cut
 
-sub allow_packages_only_once
-	{
+sub allow_packages_only_once {
 	$_[0]->{allow_packages_only_once} = !! $_[1] if defined $_[1];
 
 	$_[0]->{allow_packages_only_once};
+	}
+
+=item allow_suspicious_names( [ARG] )
+
+Allow an entry to accept an illegal name. Normally you shouldn't use this,
+but PAUSE has made bad files before.
+
+=cut
+
+sub allow_suspicious_names {
+	$_[0]->{allow_suspicious_names} = !! $_[1] if defined $_[1];
+
+	$_[0]->{allow_suspicious_names};
 	}
 
 =item disallow_alpha_versions( [ARG] )
@@ -138,8 +150,7 @@ a boolean.
 
 =cut
 
-sub disallow_alpha_versions
-	{
+sub disallow_alpha_versions {
 	$_[0]->{disallow_alpha_versions} = !! $_[1] if defined $_[1];
 
 	$_[0]->{disallow_alpha_versions};
@@ -181,8 +192,7 @@ sub _parse_version {
 		};
 	}
 
-sub add_entry
-	{
+sub add_entry {
 	my( $self, %args ) = @_;
 
 	$self->_mark_as_dirty;
@@ -203,13 +213,11 @@ sub add_entry
 		carp( $warning );
 		}
 
-	if( $self->disallow_alpha_versions && $alpha )
-		{
+	if( $self->disallow_alpha_versions && $alpha ) {
 		croak "add_entry interprets [$parsed] as an alpha version, and disallow_alpha_versions is on";
 		}
 
-	unless( defined $args{'package name'} )
-		{
+	unless( defined $args{'package name'} ) {
 		croak "No 'package name' parameter!";
 		return;
 		}
@@ -222,14 +230,12 @@ sub add_entry
 			[A-Za-z0-9_]+
 		)*
 		\z
-		/x )
-		{
+		/x || $self->allow_suspicious_names ) {
 		croak "Package name [$args{'package name'}] looks suspicious. Not adding it!";
 		return;
 		}
 
-	if( $self->allow_packages_only_once and $self->already_added( $args{'package name'} ) )
-		{
+	if( $self->allow_packages_only_once and $self->already_added( $args{'package name'} ) ) {
 		croak "$args{'package name'} was already added to CPAN::PackageDetails!";
 		return;
 		}
@@ -243,8 +249,7 @@ sub add_entry
 	return 1;
 	}
 
-sub _mark_as_dirty
-	{
+sub _mark_as_dirty {
 	delete $_[0]->{sorted};
 	}
 
@@ -263,16 +268,14 @@ on each Entry object, and concatenates the results for all Entry objects.
 
 =cut
 
-sub as_string
-	{
+sub as_string {
 	my( $self ) = @_;
 
 	my $string;
 
 	my( $return ) = $self->as_unique_sorted_list;
 
-	foreach my $entry ( @$return )
-		{
+	foreach my $entry ( @$return ) {
 		$string .= $entry->as_string( $self->columns );
 		}
 
@@ -292,12 +295,10 @@ Once called, it caches its result until you add more entries.
 =cut
 
 sub VERSION_PM () { 9 }
-sub as_unique_sorted_list
-	{
+sub as_unique_sorted_list {
 	my( $self ) = @_;
 
-	unless( ref $self->{sorted} eq ref [] )
-		{
+	unless( ref $self->{sorted} eq ref [] ) {
 		$self->{sorted} = [];
 
 		my %Seen;
@@ -307,8 +308,7 @@ sub as_unique_sorted_list
 		my $e = $self->entries;
 
 		# We only want the latest versions of everything:
-		foreach my $package ( sort keys %$e )
-			{
+		foreach my $package ( sort keys %$e ) {
 			my $entries = $e->{$package};
 			eval {
 				eval { require version } or die "Could not load version.pm!";
@@ -360,8 +360,7 @@ Returns the entry objects for the named PACKAGE.
 
 =cut
 
-sub get_entries_by_package
-	{
+sub get_entries_by_package {
 	my( $self, $package ) = @_;
 
 	my @entries =
@@ -376,8 +375,7 @@ Returns the entry objects for the named DISTRIBUTION.
 
 =cut
 
-sub get_entries_by_distribution
-	{
+sub get_entries_by_distribution {
 	require CPAN::DistnameInfo;
 	my( $self, $distribution ) = @_;
 	croak "You must specify a distribution!" unless defined $distribution;
@@ -399,8 +397,7 @@ Returns the entry objects for any entries with VERSION.
 
 =cut
 
-sub get_entries_by_version
-	{
+sub get_entries_by_version {
 	my( $self, $version ) = @_;
 
 	my @entries =
@@ -415,8 +412,7 @@ Returns the entry objects for any entries with PATH.
 
 =cut
 
-sub get_entries_by_path
-	{
+sub get_entries_by_path {
 	my( $self, $path ) = @_;
 
 	my @entries =
@@ -444,7 +440,7 @@ brian d foy, C<< <bdfoy@cpan.org> >>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2009-2011, brian d foy, All Rights Reserved.
+Copyright (c) 2009-2014, brian d foy, All Rights Reserved.
 
 You may redistribute this under the same terms as Perl itself.
 
